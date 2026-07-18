@@ -91,6 +91,13 @@ return [
         'peak_power_kwc' => (float) env('ENERGY_PV_PEAK_POWER_KWC', 6.0),
     ],
 
+    'consumption' => [
+        // Consommation journalière moyenne (kWh) d'un foyer type, répartie
+        // sur 24h par la courbe synthétique de App\Domain\Asset\ConsumptionProfile
+        // quand la requête ne fournit pas de profil horaire explicite.
+        'daily_baseline_kwh' => (float) env('ENERGY_CONSUMPTION_DAILY_BASELINE_KWH', 15.0),
+    ],
+
     'grid' => [
         // Puissance maximale de réinjection autorisée vers le réseau (kW).
         // Contrainte réglementaire/contractuelle typique (ex. Enedis).
@@ -112,6 +119,13 @@ return [
         'default_mode' => env('ENERGY_ARBITRAGE_DEFAULT_MODE', 'simple'),
         'lookahead_hours' => (int) env('ENERGY_ARBITRAGE_LOOKAHEAD_HOURS', 6),
         'lookbehind_hours' => (int) env('ENERGY_ARBITRAGE_LOOKBEHIND_HOURS', 6),
+
+        // V2 uniquement : marge de prudence appliquée aux prévisions PV/conso
+        // avant le classement "merit order" des heures candidates (cf.
+        // App\Application\Arbitrage\Engine\AdvancedArbitrageEngine). 0.0 =
+        // on fait confiance aux prévisions telles quelles.
+        'pv_forecast_safety_margin' => (float) env('ENERGY_PV_FORECAST_SAFETY_MARGIN', 0.0),
+        'consumption_forecast_safety_margin' => (float) env('ENERGY_CONSUMPTION_FORECAST_SAFETY_MARGIN', 0.0),
     ],
 
     /*
