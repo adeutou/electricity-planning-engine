@@ -1,0 +1,60 @@
+name: Tests
+
+# Workflow réutilisable (workflow_call) : la matrice PHP tourne à l'identique
+# depuis CI (chaque push/PR) et depuis Release (chaque tag de version), sans
+# dupliquer les étapes dans les deux fichiers.
+on:
+  workflow_call:
+
+jobs:
+  tests:
+    name: Tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # ^8.2 est la contrainte déclarée dans composer.json (voir
+        # config.platform.php, qui verrouille composer.lock sur cette même
+        # base) : on teste réellement les deux versions les plus basses
+        # supportées, pas seulement celle de la machine de développement,
+        # pour éviter de reproduire silencieusement le bug de lock file
+        # trouvé pendant la mise en place de Docker (voir README).
+        php: ['8.2', '8.3']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, pdo, pdo_sqlite, pdo_pgsql, bcmath, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # phpunit.xml force DB_CONNECTION=sqlite / DB_DATABASE=:memory: pour
+      # les tests : aucun service de base de données à démarrer dans ce job,
+      # les Feature tests tournent contre une base SQLite en mémoire recréée
+      # à chaque test (RefreshDatabase).
+      - name: Run test suite
+        run: php artisan test

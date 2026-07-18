@@ -206,6 +206,18 @@ vendor/bin/phpunit
 
 46 tests / 603 assertions: pure-PHP unit tests for the domain, both arbitrage engines, and the SVG chart renderer (no framework bootstrap, no database), plus Feature tests hitting the real HTTP layer against an in-memory SQLite database (`RefreshDatabase`, configured in `phpunit.xml`), including a `Http::fake()`-backed test of the Home Assistant export.
 
+### CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request against `main`: the full test suite on both PHP 8.2 and 8.3 (the range declared in `composer.json`, and the exact class of mismatch the `config.platform.php` lock fix above addresses), then a Docker image build to catch anything the test matrix alone wouldn't (missing PHP extensions, a broken `Dockerfile` step, and so on). The test matrix itself lives in [`.github/workflows/tests.yml`](.github/workflows/tests.yml), a reusable workflow shared with the release pipeline below rather than duplicated.
+
+### Releases
+
+Pushing a version tag (`v1.2.0`, matching `v*.*.*`) triggers [`.github/workflows/release.yml`](.github/workflows/release.yml): re-run the same test matrix, then, only if it's green, build the Docker image, push it to the GitHub Container Registry as `ghcr.io/<owner>/<repo>:1.2.0` and `:latest`, and publish a GitHub Release with auto-generated notes. Nothing is tagged or published on an ordinary push to `main`; a release is a deliberate action (`git tag v1.2.0 && git push origin v1.2.0`), not something that happens on every commit.
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:1.2.0
+```
+
 ## Configuration
 
 Everything project-specific lives in `config/energy.php`, driven by `.env` (see `.env.example` for the full list): active price provider (`mock` / `entsoe`), price cache TTL, default battery/PV/consumption/export assumptions, and V1/V2 tuning knobs (lookahead/lookbehind hours, forecast safety margins).
