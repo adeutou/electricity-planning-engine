@@ -101,12 +101,22 @@ final class Battery
         return $this->soc;
     }
 
-    private function chargeEfficiency(): float
+    /**
+     * Rendement appliqué à l'énergie entrante (côté réseau/PV) lors d'une
+     * charge. Public : l'Application layer (ex. AdvancedArbitrageEngine) en
+     * a besoin pour convertir une marge de stockage (kWh stockés) en
+     * équivalent kWh "côté réseau" lors du calcul d'un budget d'arbitrage.
+     */
+    public function chargeEfficiency(): float
     {
         return sqrt($this->roundTripEfficiency);
     }
 
-    private function dischargeEfficiency(): float
+    /**
+     * Rendement appliqué à l'énergie sortante (côté compteur) lors d'une
+     * décharge. Même rationale que chargeEfficiency().
+     */
+    public function dischargeEfficiency(): float
     {
         return sqrt($this->roundTripEfficiency);
     }

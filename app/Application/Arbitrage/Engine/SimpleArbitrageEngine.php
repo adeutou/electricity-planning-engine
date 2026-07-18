@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Arbitrage\Engine;
 
+use App\Application\Arbitrage\ContractPriceResolver;
 use App\Domain\Arbitrage\ArbitrageContext;
 use App\Domain\Arbitrage\ArbitrageEngineInterface;
 use App\Domain\Arbitrage\ArbitragePlan;
@@ -59,7 +60,7 @@ final class SimpleArbitrageEngine implements ArbitrageEngineInterface
         $battery = $context->battery();
         $maxExportEnergy = $context->maxExportPower()->toEnergy(1.0);
 
-        $pricesByHour = $this->resolveContractPrices($context);
+        $pricesByHour = ContractPriceResolver::resolve($context);
 
         $hours = [];
 
@@ -227,19 +228,5 @@ final class SimpleArbitrageEngine implements ArbitrageEngineInterface
         );
 
         return $sum->multiply(1 / count($prices));
-    }
-
-    /**
-     * @return array<int, Money> Prix contractuel (€/kWh) pour chaque heure de l'horizon.
-     */
-    private function resolveContractPrices(ArbitrageContext $context): array
-    {
-        $prices = [];
-
-        foreach ($context->horizon()->iterateHours() as $hourIndex => $hourStart) {
-            $prices[$hourIndex] = $context->contract()->priceForHour($hourStart, $context->prices());
-        }
-
-        return $prices;
     }
 }
