@@ -206,6 +206,10 @@ vendor/bin/phpunit
 
 46 tests / 603 assertions: pure-PHP unit tests for the domain, both arbitrage engines, and the SVG chart renderer (no framework bootstrap, no database), plus Feature tests hitting the real HTTP layer against an in-memory SQLite database (`RefreshDatabase`, configured in `phpunit.xml`), including a `Http::fake()`-backed test of the Home Assistant export.
 
+### CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request against `main`: the full test suite on both PHP 8.2 and 8.3 (the range declared in `composer.json`, and the exact class of mismatch the `config.platform.php` lock fix above addresses), then a Docker image build to catch anything the test matrix alone wouldn't (missing PHP extensions, a broken `Dockerfile` step, and so on). No deployment step yet: there is no registry or hosting target configured for this demo, so the pipeline stops at "this still builds and passes," which is the honest boundary of what "CD" means without a real target.
+
 ## Configuration
 
 Everything project-specific lives in `config/energy.php`, driven by `.env` (see `.env.example` for the full list): active price provider (`mock` / `entsoe`), price cache TTL, default battery/PV/consumption/export assumptions, and V1/V2 tuning knobs (lookahead/lookbehind hours, forecast safety margins).
