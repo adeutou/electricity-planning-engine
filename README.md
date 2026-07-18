@@ -208,7 +208,15 @@ vendor/bin/phpunit
 
 ### CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request against `main`: the full test suite on both PHP 8.2 and 8.3 (the range declared in `composer.json`, and the exact class of mismatch the `config.platform.php` lock fix above addresses), then a Docker image build to catch anything the test matrix alone wouldn't (missing PHP extensions, a broken `Dockerfile` step, and so on). No deployment step yet: there is no registry or hosting target configured for this demo, so the pipeline stops at "this still builds and passes," which is the honest boundary of what "CD" means without a real target.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request against `main`: the full test suite on both PHP 8.2 and 8.3 (the range declared in `composer.json`, and the exact class of mismatch the `config.platform.php` lock fix above addresses), then a Docker image build to catch anything the test matrix alone wouldn't (missing PHP extensions, a broken `Dockerfile` step, and so on). The test matrix itself lives in [`.github/workflows/tests.yml`](.github/workflows/tests.yml), a reusable workflow shared with the release pipeline below rather than duplicated.
+
+### Releases
+
+Pushing a version tag (`v1.2.0`, matching `v*.*.*`) triggers [`.github/workflows/release.yml`](.github/workflows/release.yml): re-run the same test matrix, then, only if it's green, build the Docker image, push it to the GitHub Container Registry as `ghcr.io/<owner>/<repo>:1.2.0` and `:latest`, and publish a GitHub Release with auto-generated notes. Nothing is tagged or published on an ordinary push to `main`; a release is a deliberate action (`git tag v1.2.0 && git push origin v1.2.0`), not something that happens on every commit.
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:1.2.0
+```
 
 ## Configuration
 
