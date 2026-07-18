@@ -15,7 +15,7 @@ use App\Domain\Shared\ValueObject\Power;
  * nouvelle instance reflétant le nouvel état de charge, plutôt que de muter
  * l'objet — cohérent avec le reste du domaine et nécessaire pour que le
  * moteur d'arbitrage puisse explorer/comparer plusieurs trajectoires (V2)
- * sans effets de bord. 
+ * sans effets de bord.
  *
  * Modélisation du rendement : le rendement aller-retour (round-trip
  * efficiency, ex. 90%) est réparti à parts égales entre charge et décharge
