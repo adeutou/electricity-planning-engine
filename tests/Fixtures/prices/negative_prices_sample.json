@@ -1,0 +1,30 @@
+{
+    "zone": "FR",
+    "description": "Journée type avec surproduction solaire à la mi-journée (prix spot négatifs entre 12h et 14h) et pic de demande en soirée.",
+    "points": [
+        {"hour_index": 0, "eur_per_mwh": 70.0},
+        {"hour_index": 1, "eur_per_mwh": 65.0},
+        {"hour_index": 2, "eur_per_mwh": 60.0},
+        {"hour_index": 3, "eur_per_mwh": 58.0},
+        {"hour_index": 4, "eur_per_mwh": 60.0},
+        {"hour_index": 5, "eur_per_mwh": 65.0},
+        {"hour_index": 6, "eur_per_mwh": 80.0},
+        {"hour_index": 7, "eur_per_mwh": 95.0},
+        {"hour_index": 8, "eur_per_mwh": 90.0},
+        {"hour_index": 9, "eur_per_mwh": 60.0},
+        {"hour_index": 10, "eur_per_mwh": 30.0},
+        {"hour_index": 11, "eur_per_mwh": 5.0},
+        {"hour_index": 12, "eur_per_mwh": -15.0},
+        {"hour_index": 13, "eur_per_mwh": -25.0},
+        {"hour_index": 14, "eur_per_mwh": -10.0},
+        {"hour_index": 15, "eur_per_mwh": 10.0},
+        {"hour_index": 16, "eur_per_mwh": 40.0},
+        {"hour_index": 17, "eur_per_mwh": 90.0},
+        {"hour_index": 18, "eur_per_mwh": 140.0},
+        {"hour_index": 19, "eur_per_mwh": 170.0},
+        {"hour_index": 20, "eur_per_mwh": 150.0},
+        {"hour_index": 21, "eur_per_mwh": 110.0},
+        {"hour_index": 22, "eur_per_mwh": 90.0},
+        {"hour_index": 23, "eur_per_mwh": 78.0}
+    ]
+}
