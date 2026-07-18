@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epe_app
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      DB_CONNECTION: pgsql
+      DB_HOST: pgsql
+      DB_PORT: 5432
+      DB_DATABASE: electricity_planning
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      ENERGY_PRICE_PROVIDER: mock
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    # Migre au démarrage puis sert l'API. On utilise le serveur intégré PHP
+    # directement plutôt que `php artisan serve` : cette dernière relit le
+    # fichier .env depuis le disque pour construire l'environnement de son
+    # sous-processus, ce qui ignore silencieusement les variables injectées
+    # ici par `environment:` (DB_HOST=pgsql, etc.) et reconnecte sur les
+    # valeurs par défaut de .env (127.0.0.1, pensées pour un usage hors
+    # Docker). `php -S` hérite normalement de l'environnement du process
+    # parent, donc du conteneur. En production, la migration ferait partie
+    # du pipeline de déploiement, pas du point d'entrée du conteneur.
+    command: sh -c "php artisan migrate --force && php -S 0.0.0.0:8000 -t public public/index.php"
+
+  pgsql:
+    image: postgres:16-alpine
+    container_name: epe_pgsql
+    environment:
+      POSTGRES_DB: electricity_planning
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - epe_pgsql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: epe_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  epe_pgsql_data:
