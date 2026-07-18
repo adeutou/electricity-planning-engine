@@ -6,11 +6,13 @@ namespace App\Providers;
 
 use App\Application\Arbitrage\SimulateArbitrageUseCase;
 use App\Application\Ports\EnergyContractRepositoryInterface;
+use App\Application\Ports\HomeAssistantExporterInterface;
 use App\Application\Ports\PricePointRepositoryInterface;
 use App\Application\Ports\SimulationPlanRepositoryInterface;
 use App\Application\Pricing\FetchPriceSeriesUseCase;
 use App\Application\Pricing\PriceProviderResolver;
 use App\Domain\Pricing\PriceProviderInterface;
+use App\Infrastructure\HomeAssistant\HomeAssistantWebhookExporter;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentEnergyContractRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPricePointRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentSimulationPlanRepository;
@@ -72,6 +74,15 @@ final class DomainServiceProvider extends ServiceProvider
         $this->app->bind(FetchPriceSeriesUseCase::class, function (Application $app): FetchPriceSeriesUseCase {
             return new FetchPriceSeriesUseCase(
                 priceProviders: $app->make(PriceProviderResolver::class),
+            );
+        });
+
+        $this->app->bind(HomeAssistantExporterInterface::class, function (Application $app): HomeAssistantExporterInterface {
+            /** @var array<string, mixed> $homeAssistantConfig */
+            $homeAssistantConfig = $app->make('config')->get('energy.home_assistant');
+
+            return new HomeAssistantWebhookExporter(
+                webhookUrl: $homeAssistantConfig['webhook_url'] ?: null,
             );
         });
     }

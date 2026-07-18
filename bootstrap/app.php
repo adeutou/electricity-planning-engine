@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Shared\Exception\DomainException;
+use App\Infrastructure\HomeAssistant\HomeAssistantExportException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -27,6 +28,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (DomainException $e, Request $request) {
             if ($request->is('api/*')) {
                 return new JsonResponse(['message' => $e->getMessage()], 422);
+            }
+        });
+
+        // Le problème est côté service externe (Home Assistant non configuré
+        // ou injoignable), pas côté requête du client : 503, pas 422/500.
+        $exceptions->render(function (HomeAssistantExportException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return new JsonResponse(['message' => $e->getMessage()], 503);
             }
         });
     })->create();
