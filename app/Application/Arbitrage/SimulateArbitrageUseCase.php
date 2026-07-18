@@ -12,19 +12,18 @@ use App\Application\Arbitrage\Engine\AdvancedArbitrageEngine;
 use App\Application\Arbitrage\Engine\SimpleArbitrageEngine;
 use App\Application\Ports\EnergyContractRepositoryInterface;
 use App\Application\Ports\SimulationPlanRepositoryInterface;
+use App\Application\Pricing\PriceProviderResolver;
 use App\Domain\Arbitrage\ArbitrageContext;
 use App\Domain\Arbitrage\ArbitrageEngineInterface;
 use App\Domain\Asset\Battery;
 use App\Domain\Asset\ConsumptionProfile;
 use App\Domain\Asset\PhotovoltaicSystem;
 use App\Domain\Asset\ValueObject\HourlyProfile;
-use App\Domain\Pricing\PriceProviderInterface;
 use App\Domain\Pricing\PriceSeries;
 use App\Domain\Shared\ValueObject\Energy;
 use App\Domain\Shared\ValueObject\Percentage;
 use App\Domain\Shared\ValueObject\Power;
 use App\Domain\Shared\ValueObject\TimeHorizon;
-use App\Infrastructure\PriceProvider\PriceProviderFactory;
 use InvalidArgumentException;
 
 /**
@@ -47,7 +46,7 @@ final class SimulateArbitrageUseCase
     public function __construct(
         private readonly EnergyContractRepositoryInterface $contracts,
         private readonly SimulationPlanRepositoryInterface $plans,
-        private readonly PriceProviderInterface $defaultPriceProvider,
+        private readonly PriceProviderResolver $priceProviders,
         private readonly array $energyConfig,
     ) {}
 
@@ -59,9 +58,7 @@ final class SimulateArbitrageUseCase
         $contract = $contractRecord->contract;
 
         $priceProviderName = $request->priceProvider ?? (string) ($this->energyConfig['price_provider'] ?? 'mock');
-        $priceProvider = $request->priceProvider !== null
-            ? PriceProviderFactory::make(array_merge($this->energyConfig, ['price_provider' => $request->priceProvider]))
-            : $this->defaultPriceProvider;
+        $priceProvider = $this->priceProviders->resolve($request->priceProvider);
 
         // On n'interroge le provider que si le contrat en a réellement besoin
         // (tarif spot) : inutile de solliciter une API externe pour un

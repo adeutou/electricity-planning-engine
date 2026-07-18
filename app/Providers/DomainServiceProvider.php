@@ -8,6 +8,8 @@ use App\Application\Arbitrage\SimulateArbitrageUseCase;
 use App\Application\Ports\EnergyContractRepositoryInterface;
 use App\Application\Ports\PricePointRepositoryInterface;
 use App\Application\Ports\SimulationPlanRepositoryInterface;
+use App\Application\Pricing\FetchPriceSeriesUseCase;
+use App\Application\Pricing\PriceProviderResolver;
 use App\Domain\Pricing\PriceProviderInterface;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentEnergyContractRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentPricePointRepository;
@@ -47,15 +49,29 @@ final class DomainServiceProvider extends ServiceProvider
             );
         });
 
-        // SimulateArbitrageUseCase attend un tableau brut (config('energy'))
-        // plutôt que d'appeler config() lui-même, pour rester testable sans
-        // bootstrap Laravel — ce binding explicite fait le pont.
+        $this->app->singleton(PriceProviderResolver::class, function (Application $app): PriceProviderResolver {
+            return new PriceProviderResolver(
+                default: $app->make(PriceProviderInterface::class),
+                energyConfig: $app->make('config')->get('energy'),
+            );
+        });
+
+        // SimulateArbitrageUseCase / FetchPriceSeriesUseCase attendent un
+        // tableau brut (config('energy')) plutôt que d'appeler config()
+        // elles-mêmes, pour rester testables sans bootstrap Laravel — ces
+        // bindings explicites font le pont.
         $this->app->bind(SimulateArbitrageUseCase::class, function (Application $app): SimulateArbitrageUseCase {
             return new SimulateArbitrageUseCase(
                 contracts: $app->make(EnergyContractRepositoryInterface::class),
                 plans: $app->make(SimulationPlanRepositoryInterface::class),
-                defaultPriceProvider: $app->make(PriceProviderInterface::class),
+                priceProviders: $app->make(PriceProviderResolver::class),
                 energyConfig: $app->make('config')->get('energy'),
+            );
+        });
+
+        $this->app->bind(FetchPriceSeriesUseCase::class, function (Application $app): FetchPriceSeriesUseCase {
+            return new FetchPriceSeriesUseCase(
+                priceProviders: $app->make(PriceProviderResolver::class),
             );
         });
     }
