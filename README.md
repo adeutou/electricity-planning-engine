@@ -233,3 +233,7 @@ Documented here rather than glossed over, because knowing what's *not* done, and
 - **Home Assistant integration beyond the webhook**: the webhook export is implemented end to end (`POST /api/plans/{id}/export/home-assistant`, see [`docs/home-assistant-integration.md`](docs/home-assistant-integration.md)); an MQTT-discovery exporter and a REST-API-with-token exporter are documented as drop-in alternatives (same `HomeAssistantExporterInterface` port) but not built.
 - **Scalability**: the use case is fully synchronous today. Under real load, `POST /api/simulate` becomes a queue job (Redis + Horizon, already configured as the default queue/cache driver) so the HTTP request returns immediately with a plan id and the client polls or gets notified; price series are already cached (`CachingPriceProvider` + `price_points` table) to avoid re-hitting ENTSO-E per request; Octane would remove per-request framework bootstrap cost for the hot path.
 - **Multi-tenant contracts**: `EnergyContract` is created fresh on every `/api/simulate` call by design (see `EnergyContractRepositoryInterface` docblock): deliberately simple for a demo. A real product would let users manage saved contracts and reference them by id.
+
+## License
+
+[MIT](LICENSE)
