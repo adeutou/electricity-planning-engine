@@ -21,7 +21,7 @@ use IteratorAggregate;
  */
 final class PriceSeries implements Countable, IteratorAggregate
 {
-    /** @var array<string, PricePoint> indexé par timestamp ISO-8601 pour un lookup O(1) */
+    /** @var array<int, PricePoint> indexé par timestamp Unix pour un lookup O(1) */
     private readonly array $byTimestamp;
 
     /** @var list<PricePoint> trié chronologiquement */
@@ -166,8 +166,17 @@ final class PriceSeries implements Countable, IteratorAggregate
         return $best;
     }
 
-    private function key(DateTimeImmutable $hour): string
+    /**
+     * Indexé par timestamp Unix plutôt que par chaîne ISO-8601 : deux
+     * DateTimeImmutable représentant le même instant mais construits avec
+     * des fuseaux différents (typique après un aller-retour base de
+     * données, où le fuseau applicatif — UTC — diffère du fuseau du
+     * contrat) doivent être reconnus comme la même heure. Une clé formatée
+     * avec l'offset (DATE_ATOM) échouerait silencieusement à les faire
+     * correspondre.
+     */
+    private function key(DateTimeImmutable $hour): int
     {
-        return $hour->format(DATE_ATOM);
+        return $hour->getTimestamp();
     }
 }
