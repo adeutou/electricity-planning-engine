@@ -1,0 +1,49 @@
+name: Deploy API docs
+
+# Ne se redéclenche que si docs/ (ou ce workflow) change, pas à chaque push
+# sur main : la doc Swagger UI n'a pas besoin d'être republiée pour un
+# changement qui ne la concerne pas.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Une seule publication à la fois ; ne pas annuler un déploiement déjà en
+# cours pour éviter de laisser Pages dans un état incohérent.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      # docs/index.html charge Swagger UI depuis un CDN et pointe vers
+      # docs/openapi.yaml en chemin relatif : aucune étape de build,
+      # le dossier docs/ est publié tel quel.
+      - name: Upload docs/ as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
