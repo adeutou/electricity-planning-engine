@@ -143,14 +143,17 @@ final class OpenApiSpecTest extends TestCase
     {
         $responses = self::$spec['paths']['/api/simulate']['post']['responses'];
 
-        self::assertSame(['201', '422'], array_keys($responses));
+        // PHP casts numeric-string array keys ("201") to int on the way in,
+        // regardless of how they were quoted in the YAML source, so
+        // array_keys() here always yields ints, never strings.
+        self::assertSame([201, 422], array_keys($responses));
     }
 
     public function test_plan_show_responses_are_200_and_404_only(): void
     {
         $responses = self::$spec['paths']['/api/plans/{id}']['get']['responses'];
 
-        self::assertSame(['200', '404'], array_keys($responses));
+        self::assertSame([200, 404], array_keys($responses));
     }
 
     public function test_chart_data_and_chart_svg_both_can_404_for_an_unknown_plan(): void
@@ -170,7 +173,7 @@ final class OpenApiSpecTest extends TestCase
     {
         $responses = self::$spec['paths']['/api/plans/{id}/export/home-assistant']['post']['responses'];
 
-        self::assertSame(['200', '404', '503'], array_keys($responses));
+        self::assertSame([200, 404, 503], array_keys($responses));
     }
 
     public function test_prices_query_parameters_zone_from_and_to_are_required_while_provider_is_not(): void
@@ -187,7 +190,7 @@ final class OpenApiSpecTest extends TestCase
     {
         $responses = self::$spec['paths']['/api/prices']['get']['responses'];
 
-        self::assertSame(['200', '422'], array_keys($responses));
+        self::assertSame([200, 422], array_keys($responses));
     }
 
     public function test_plan_id_path_parameter_component_is_required_and_reused_by_every_plan_route(): void

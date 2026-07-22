@@ -31,9 +31,18 @@
     .banner .sep { opacity: 0.5; }
 
     /* ---------- Swagger UI: keep everything inside the viewport ------- */
-    /* Swagger UI's default layout assumes a wide desktop viewport: fixed
-       paddings and multi-column parameter tables overflow horizontally on
-       a phone. Nothing below changes behavior, only how it reflows. */
+    /* Swagger UI 5 is already responsive on its own terms: it uses CSS
+       Container Queries (container-type: inline-size on .swagger-ui) with
+       its own breakpoints at 550/640/768px, not plain @media rules, and it
+       already wraps code blocks and stacks the topbar by itself. What it
+       does NOT do is protect the parameters table or the schema/model
+       table from overflowing when a column's content is genuinely wide.
+
+       Important: never set `display: block` (or any display override) on
+       a <table> itself to "make it responsive": that discards the table
+       layout algorithm and breaks row/column alignment instead of fixing
+       anything. The correct fix is overflow-x on the table's *container*,
+       leaving the table's own display untouched. */
     .swagger-ui .wrapper {
       padding: 0 12px;
       max-width: 100%;
@@ -42,28 +51,16 @@
       flex-wrap: wrap;
       row-gap: 6px;
     }
-    .swagger-ui .opblock-summary-path {
-      word-break: break-word;
+    .swagger-ui .table-container {
+      overflow-x: auto;
       max-width: 100%;
     }
-    .swagger-ui table {
-      display: block;
+    .swagger-ui .model-box {
       max-width: 100%;
       overflow-x: auto;
     }
-    .swagger-ui .parameters-col_description,
-    .swagger-ui .parameters-col_name,
-    .swagger-ui .response-col_description {
-      width: auto;
-      max-width: 100%;
-    }
-    .swagger-ui pre,
-    .swagger-ui .highlight-code,
-    .swagger-ui .microlight,
-    .swagger-ui .model-box,
     .swagger-ui .body-param textarea {
       max-width: 100%;
-      overflow-x: auto;
     }
     .swagger-ui select {
       max-width: 100%;
@@ -95,9 +92,6 @@
       .swagger-ui .authorization__btn,
       .swagger-ui select {
         min-height: 40px;
-      }
-      .swagger-ui .btn.execute {
-        width: 100%;
       }
       .swagger-ui .try-out__btn {
         width: 100%;
