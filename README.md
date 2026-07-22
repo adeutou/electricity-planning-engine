@@ -80,6 +80,8 @@ While building the round-trip persistence tests, `PriceSeries::priceAt()` starte
 
 ## API
 
+Full interactive reference (OpenAPI 3.0 + Swagger UI, "Try it out" included): **[adeutou.github.io/electricity-planning-engine](https://adeutou.github.io/electricity-planning-engine/)**. The spec itself lives at [`docs/openapi.yaml`](docs/openapi.yaml) and is verified against the actual Form Requests and Resources, not written from memory; [`docs/index.html`](docs/index.html) loads it into Swagger UI via CDN, no build step. [`.github/workflows/pages.yml`](.github/workflows/pages.yml) republishes it to GitHub Pages whenever `docs/` changes on `main`.
+
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `POST` | `/api/simulate` | Run a simulation (V1 or V2) and persist the resulting plan. |

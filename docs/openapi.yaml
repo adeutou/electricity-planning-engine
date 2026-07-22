@@ -1,0 +1,475 @@
+openapi: 3.0.3
+info:
+  title: Electricity Planning Engine API
+  version: "1.0.0"
+  description: |
+    An hourly electricity arbitrage engine: given an energy contract, hourly
+    market prices, a home battery, PV production and a consumption profile,
+    it decides, hour by hour over a 24 to 72 hour horizon, whether to consume
+    from the grid, charge or discharge the battery, or export surplus PV to
+    the grid, in order to minimize cost.
+
+    Two arbitrage engines are available via the `mode` field of
+    `POST /api/simulate`:
+      - `simple`: a greedy hour-by-hour heuristic (local price comparison).
+      - `advanced`: a two-phase heuristic that ranks the whole horizon by
+        price before dispatching, better at reserving battery capacity for
+        the real daily price peak.
+
+    Business-rule violations that pass request validation but break a domain
+    invariant (for example `soc_min_percent >= soc_max_percent`) are
+    reported as `422` as well, with a plain `message` field instead of a
+    per-field `errors` map.
+  license:
+    name: MIT
+    url: https://github.com/adeutou/electricity-planning-engine/blob/main/LICENSE
+externalDocs:
+  description: Project README (architecture, domain model, local setup)
+  url: https://github.com/adeutou/electricity-planning-engine#readme
+
+servers:
+  - url: http://localhost:8000
+    description: Local (docker compose up -d --build)
+
+tags:
+  - name: Simulation
+    description: Run an arbitrage simulation and persist the resulting plan.
+  - name: Plans
+    description: Retrieve a previously computed plan, as JSON, chart-ready JSON, or a rendered SVG chart.
+  - name: Prices
+    description: Inspect raw market prices without running a simulation.
+  - name: Home Assistant
+    description: Push a computed plan to a Home Assistant webhook.
+
+paths:
+  /api/simulate:
+    post:
+      tags: [Simulation]
+      summary: Run a simulation
+      description: >-
+        Only `contract`, `horizon` and `mode` are required. `battery`, `pv`,
+        `consumption`, `price_provider` and `max_export_power_kw` fall back
+        to server-side defaults (`config/energy.php`), and any sub-field can
+        be overridden individually.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateRequestBody"
+            examples:
+              peakOffPeak:
+                summary: HP/HC contract, PV + battery
+                value:
+                  contract:
+                    name: "Demo HP/HC"
+                    country_code: "FR"
+                    zone: "FR"
+                    contract_type: "peak_off_peak"
+                    pricing_config:
+                      off_peak_slots:
+                        - { start: "22:00", end: "06:00" }
+                      seasons:
+                        - label: "year_round"
+                          months: [1,2,3,4,5,6,7,8,9,10,11,12]
+                          rates:
+                            - { slot: "peak", price_per_kwh: 0.27 }
+                            - { slot: "off_peak", price_per_kwh: 0.20 }
+                  horizon:
+                    start: "2026-07-20T00:00:00+02:00"
+                    end: "2026-07-21T00:00:00+02:00"
+                    timezone: "Europe/Paris"
+                  mode: "simple"
+                  pv: { peak_power_kwc: 6 }
+                  battery: { capacity_kwh: 10, initial_soc_percent: 50 }
+              dynamicSpot:
+                summary: Dynamic spot contract, advanced mode
+                value:
+                  contract:
+                    country_code: "DE"
+                    zone: "DE"
+                    contract_type: "dynamic_spot"
+                    pricing_config:
+                      supplier_fee_per_kwh: 0.02
+                      supplier_margin_percent: 5
+                  horizon:
+                    start: "2026-07-20T00:00:00+02:00"
+                    end: "2026-07-21T00:00:00+02:00"
+                  mode: "advanced"
+                  pv: { peak_power_kwc: 6 }
+                  battery: { capacity_kwh: 10 }
+      responses:
+        "201":
+          description: Plan computed and persisted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationPlanEnvelope"
+        "422":
+          description: Request validation failed, or a domain invariant was violated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+  /api/plans/{id}:
+    get:
+      tags: [Plans]
+      summary: Retrieve a persisted plan
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: The plan, including persistence metadata (price provider, horizon, timezone).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationPlanEnvelope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/plans/{id}/chart-data:
+    get:
+      tags: [Plans]
+      summary: Retrieve the plan as chart-ready parallel series
+      description: >-
+        Same underlying data as `GET /api/plans/{id}`, reshaped into one
+        array per series (price, PV, consumption, battery, cumulative
+        cost), ready to feed a charting library such as Chart.js.
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Chart-ready series.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartData"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/plans/{id}/chart.svg:
+    get:
+      tags: [Plans]
+      summary: Retrieve the plan as a rendered SVG chart
+      description: >-
+        Server-rendered SVG (no JavaScript, no charting library dependency):
+        three stacked panels for price, energy flows, and battery SOC. Can
+        be opened directly in a browser or embedded in an `<img>` tag.
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: SVG image.
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/plans/{id}/export/home-assistant:
+    post:
+      tags: [Home Assistant]
+      summary: Push a plan to a Home Assistant webhook
+      description: >-
+        Requires `HOME_ASSISTANT_WEBHOOK_URL` to be configured server-side.
+        See `docs/home-assistant-integration.md` in the repository for the
+        Home Assistant automation side.
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Export succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Plan '01kxtqsx7t6tcvmrx2kpjrbbq7' exported to Home Assistant."
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: The webhook is not configured, or Home Assistant rejected/could not be reached.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Home Assistant webhook URL is not configured. Set HOME_ASSISTANT_WEBHOOK_URL in .env."
+
+  /api/prices:
+    get:
+      tags: [Prices]
+      summary: Inspect raw market prices
+      parameters:
+        - name: zone
+          in: query
+          required: true
+          schema: { type: string, maxLength: 32 }
+          example: "FR"
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+          example: "2026-07-20T00:00:00+02:00"
+        - name: to
+          in: query
+          required: true
+          description: Must be strictly after `from`.
+          schema: { type: string, format: date-time }
+          example: "2026-07-20T06:00:00+02:00"
+        - name: provider
+          in: query
+          required: false
+          schema: { type: string, enum: [mock, entsoe] }
+          description: Overrides the server-side default price provider for this call only.
+      responses:
+        "200":
+          description: One price point per hour in the requested window.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PricePoint"
+        "422":
+          description: Request validation failed (e.g. missing zone, or `to` before `from`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+
+components:
+  parameters:
+    PlanId:
+      name: id
+      in: path
+      required: true
+      description: ULID of a plan returned by `POST /api/simulate`.
+      schema: { type: string, example: "01kxtqsx7t6tcvmrx2kpjrbbq7" }
+
+  responses:
+    NotFound:
+      description: No plan exists with this id.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Simulation plan '01ARZ3NDEKTSV4RRFFQ69G5FAV' not found."
+
+  schemas:
+    SimulateRequestBody:
+      type: object
+      required: [contract, horizon, mode]
+      properties:
+        contract:
+          $ref: "#/components/schemas/EnergyContractInput"
+        horizon:
+          $ref: "#/components/schemas/HorizonInput"
+        mode:
+          type: string
+          enum: [simple, advanced]
+          description: simple = greedy V1 engine, advanced = anticipatory V2 engine.
+        price_provider:
+          type: string
+          enum: [mock, entsoe]
+          nullable: true
+          description: Overrides the server-side default price provider for this simulation only.
+        battery:
+          $ref: "#/components/schemas/BatteryInput"
+        pv:
+          $ref: "#/components/schemas/PvInput"
+        consumption:
+          $ref: "#/components/schemas/ConsumptionInput"
+        max_export_power_kw:
+          type: number
+          nullable: true
+          minimum: 0
+
+    EnergyContractInput:
+      type: object
+      required: [country_code, zone, contract_type, pricing_config]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          nullable: true
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "FR"
+        zone:
+          type: string
+          maxLength: 32
+          example: "FR"
+        contract_type:
+          type: string
+          enum: [fixed, peak_off_peak, tempo, dynamic_spot]
+        pricing_config:
+          type: object
+          description: >-
+            Shape depends on contract_type. fixed: {price_per_kwh}.
+            peak_off_peak: {off_peak_slots, seasons}. tempo: {off_peak_slots,
+            rates, default_color?, calendar?}. dynamic_spot:
+            {supplier_fee_per_kwh, supplier_margin_percent?}. See the request
+            examples on POST /api/simulate.
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          nullable: true
+          default: "EUR"
+        subscribed_power_kva:
+          type: number
+          minimum: 0
+          nullable: true
+        timezone:
+          type: string
+          nullable: true
+          example: "Europe/Paris"
+
+    HorizonInput:
+      type: object
+      required: [start, end]
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+          description: Must be strictly after start, and the duration must be a whole number of hours (max 168h).
+        timezone:
+          type: string
+          nullable: true
+          description: Defaults to the contract's timezone, then Europe/Paris.
+
+    BatteryInput:
+      type: object
+      nullable: true
+      description: Any omitted field falls back to config/energy.php.
+      properties:
+        capacity_kwh: { type: number, minimum: 0 }
+        max_charge_power_kw: { type: number, minimum: 0 }
+        max_discharge_power_kw: { type: number, minimum: 0 }
+        round_trip_efficiency: { type: number, minimum: 0.01, maximum: 1 }
+        soc_min_percent: { type: number, minimum: 0, maximum: 100 }
+        soc_max_percent: { type: number, minimum: 0, maximum: 100 }
+        initial_soc_percent: { type: number, minimum: 0, maximum: 100 }
+
+    PvInput:
+      type: object
+      nullable: true
+      properties:
+        peak_power_kwc: { type: number, minimum: 0 }
+        hourly_profile_kwh:
+          type: array
+          items: { type: number, minimum: 0 }
+          description: Explicit hourly production. Overrides peak_power_kwc's synthetic curve if present.
+
+    ConsumptionInput:
+      type: object
+      nullable: true
+      properties:
+        daily_baseline_kwh: { type: number, minimum: 0 }
+        hourly_profile_kwh:
+          type: array
+          items: { type: number, minimum: 0 }
+          description: Explicit hourly consumption. Overrides daily_baseline_kwh's synthetic curve if present.
+
+    PlanHour:
+      type: object
+      properties:
+        hour_index: { type: integer, example: 0 }
+        starts_at: { type: string, format: date-time }
+        price_eur_per_kwh: { type: number, example: 0.2 }
+        consumption_kwh: { type: number }
+        pv_production_kwh: { type: number }
+        consumption_from_grid_kwh: { type: number }
+        consumption_from_pv_kwh: { type: number }
+        consumption_from_battery_kwh: { type: number }
+        battery_charge_kwh: { type: number }
+        battery_discharge_kwh: { type: number }
+        export_to_grid_kwh: { type: number }
+        soc_end_of_hour_kwh: { type: number }
+        cost_eur:
+          type: number
+          description: Can be negative (net revenue), e.g. during a negative-price hour.
+
+    SimulationPlanEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id: { type: string, example: "01kxtqsx7t6tcvmrx2kpjrbbq7" }
+            zone: { type: string, example: "FR" }
+            mode: { type: string, enum: [simple, advanced] }
+            totals:
+              type: object
+              properties:
+                cost_eur: { type: number }
+                consumption_kwh: { type: number }
+                pv_production_kwh: { type: number }
+                export_kwh: { type: number }
+            hours:
+              type: array
+              items:
+                $ref: "#/components/schemas/PlanHour"
+            price_provider:
+              type: string
+              nullable: true
+              description: Only present when reading a persisted plan (GET, not the POST response).
+            horizon_start: { type: string, format: date-time, nullable: true }
+            horizon_end: { type: string, format: date-time, nullable: true }
+            timezone: { type: string, nullable: true, example: "Europe/Paris" }
+
+    ChartData:
+      type: object
+      properties:
+        id: { type: string }
+        labels:
+          type: array
+          items: { type: string, format: date-time }
+        series:
+          type: object
+          properties:
+            price_eur_per_kwh: { type: array, items: { type: number } }
+            pv_production_kwh: { type: array, items: { type: number } }
+            consumption_kwh: { type: array, items: { type: number } }
+            battery_charge_kwh: { type: array, items: { type: number } }
+            battery_discharge_kwh: { type: array, items: { type: number } }
+            cumulative_cost_eur: { type: array, items: { type: number } }
+
+    PricePoint:
+      type: object
+      properties:
+        zone: { type: string, example: "FR" }
+        source: { type: string, enum: [mock, entsoe] }
+        timestamp: { type: string, format: date-time }
+        resolution_minutes: { type: integer, example: 60 }
+        price_eur_per_mwh: { type: number, example: 78.73 }
+        price_eur_per_kwh: { type: number, example: 0.07873 }
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+          description: Present for Laravel-level validation failures (missing/malformed fields). Absent for domain-invariant violations, which only set `message`.

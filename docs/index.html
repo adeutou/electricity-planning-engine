@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <title>Electricity Planning Engine: API Reference</title>
+  <meta name="description" content="OpenAPI reference for the Electricity Planning Engine, an hourly electricity arbitrage API built with Laravel." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='20'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    /* ---------- Base / layout ---------------------------------------- */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; max-width: 100%; overflow-x: hidden; }
+    body { background: #fafafa; }
+    .topbar { display: none; }
+
+    .banner {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.75rem 1rem;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem 1rem;
+    }
+    .banner a { color: #7dd3fc; text-decoration: none; }
+    .banner a:hover { text-decoration: underline; }
+    .banner .links { display: flex; flex-wrap: wrap; gap: 0.25rem 0.6rem; }
+    .banner .sep { opacity: 0.5; }
+
+    /* ---------- Swagger UI: keep everything inside the viewport ------- */
+    /* Swagger UI's default layout assumes a wide desktop viewport: fixed
+       paddings and multi-column parameter tables overflow horizontally on
+       a phone. Nothing below changes behavior, only how it reflows. */
+    .swagger-ui .wrapper {
+      padding: 0 12px;
+      max-width: 100%;
+    }
+    .swagger-ui .opblock-summary {
+      flex-wrap: wrap;
+      row-gap: 6px;
+    }
+    .swagger-ui .opblock-summary-path {
+      word-break: break-word;
+      max-width: 100%;
+    }
+    .swagger-ui table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .swagger-ui .parameters-col_description,
+    .swagger-ui .parameters-col_name,
+    .swagger-ui .response-col_description {
+      width: auto;
+      max-width: 100%;
+    }
+    .swagger-ui pre,
+    .swagger-ui .highlight-code,
+    .swagger-ui .microlight,
+    .swagger-ui .model-box,
+    .swagger-ui .body-param textarea {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .swagger-ui select {
+      max-width: 100%;
+    }
+    .swagger-ui .info { margin: 20px 0; }
+    .swagger-ui .scheme-container { padding: 12px; }
+
+    /* Touch-friendly tap targets: default Swagger UI buttons are sized for
+       a mouse cursor, bump them up a bit under the common phone breakpoint. */
+    @media (max-width: 640px) {
+      .banner {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+      }
+      .swagger-ui .info .title {
+        font-size: 1.4rem;
+        word-break: break-word;
+      }
+      .swagger-ui .opblock .opblock-summary-method {
+        min-width: 64px;
+        padding: 6px 0;
+        text-align: center;
+      }
+      .swagger-ui .opblock .opblock-summary-description {
+        font-size: 0.85rem;
+      }
+      .swagger-ui .btn,
+      .swagger-ui .authorization__btn,
+      .swagger-ui select {
+        min-height: 40px;
+      }
+      .swagger-ui .btn.execute {
+        width: 100%;
+      }
+      .swagger-ui .try-out__btn {
+        width: 100%;
+      }
+      .swagger-ui .responses-wrapper,
+      .swagger-ui .opblock-description-wrapper,
+      .swagger-ui .opblock-external-docs-wrapper {
+        padding: 0 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <span>&#9889; Electricity Planning Engine: API Reference</span>
+    <span class="links">
+      <a href="https://github.com/adeutou/electricity-planning-engine">Source on GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/adeutou/electricity-planning-engine#readme">README</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/adeutou/electricity-planning-engine/blob/main/docs/home-assistant-integration.md">Home Assistant integration</a>
+    </span>
+  </div>
+  <div id="swagger-ui"></div>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: "openapi.yaml",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout",
+        docExpansion: "list",
+        defaultModelsExpandDepth: 1,
+      });
+    };
+  </script>
+</body>
+</html>
