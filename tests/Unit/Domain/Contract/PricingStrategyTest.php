@@ -43,6 +43,40 @@ final class PricingStrategyTest extends TestCase
         self::assertTrue($strategy->priceForHour(new DateTimeImmutable('2026-07-18 05:00:00'))->equals(Money::of(0.20)));
     }
 
+    /**
+     * Regression coverage prompted by a reader comment: every other HP/HC
+     * test in this file exercises hours well inside the peak/off-peak
+     * window (23:00, 05:00, 14:00). None of them touch the exact transition
+     * minute, where an inclusive/exclusive mistake in
+     * TimeSlot::contains() would silently misclassify exactly one hour a
+     * day without anything catching it. The off-peak slot is [22:00, 06:00):
+     * start inclusive, end exclusive, so 22:00:00 is already off-peak and
+     * 06:00:00 is already peak again.
+     */
+    public function test_peak_off_peak_strategy_resolves_the_exact_boundary_minute_correctly(): void
+    {
+        $strategy = PricingStrategyFactory::fromConfig(ContractType::PeakOffPeak, [
+            'off_peak_slots' => [['start' => '22:00', 'end' => '06:00']],
+            'seasons' => [[
+                'label' => 'year_round',
+                'months' => range(1, 12),
+                'rates' => [
+                    ['slot' => 'peak', 'price_per_kwh' => 0.27],
+                    ['slot' => 'off_peak', 'price_per_kwh' => 0.20],
+                ],
+            ]],
+        ]);
+
+        // Just before the off-peak window opens: still peak.
+        self::assertTrue($strategy->priceForHour(new DateTimeImmutable('2026-07-18 21:59:00'))->equals(Money::of(0.27)));
+        // The window opens exactly at 22:00:00: start is inclusive.
+        self::assertTrue($strategy->priceForHour(new DateTimeImmutable('2026-07-18 22:00:00'))->equals(Money::of(0.20)));
+        // Just before the off-peak window closes: still off-peak.
+        self::assertTrue($strategy->priceForHour(new DateTimeImmutable('2026-07-19 05:59:00'))->equals(Money::of(0.20)));
+        // The window closes exactly at 06:00:00: end is exclusive, already peak.
+        self::assertTrue($strategy->priceForHour(new DateTimeImmutable('2026-07-19 06:00:00'))->equals(Money::of(0.27)));
+    }
+
     public function test_peak_off_peak_strategy_supports_seasonal_rates(): void
     {
         $strategy = PricingStrategyFactory::fromConfig(ContractType::PeakOffPeak, [
